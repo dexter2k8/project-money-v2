@@ -6,6 +6,7 @@ export async function POST() {
   try {
     const cookieStore = await cookies();
     cookieStore.delete("project-money-token");
+    cookieStore.delete("project-money-refresh-token");
     return NextResponse.json({ message: "Sign out successfully" }, { status: 200 });
   } catch (error) {
     console.error("Sign-out error:", error);

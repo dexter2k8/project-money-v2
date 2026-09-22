@@ -26,8 +26,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Use the access token from Supabase session
+    // Use the access token and refresh token from Supabase session
     const accessToken = data.session.access_token;
+    const refreshToken = data.session.refresh_token;
 
     const cookieStore = await cookies();
     cookieStore.set({
@@ -39,6 +40,18 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24,
       path: "/",
     });
+
+    if (refreshToken) {
+      cookieStore.set({
+        name: "project-money-refresh-token",
+        value: refreshToken,
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: "/",
+      });
+    }
 
     const user = {
       uid: data.user.id,

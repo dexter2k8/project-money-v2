@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const LOCAL_STORAGE_CHANGE = "local-storage-change";
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
+  const initialValueRef = useRef(initialValue);
+
   const [value, setValue] = useState<T>(() => {
     if (typeof window === "undefined") return initialValue;
     const stored = localStorage.getItem(key);
@@ -14,7 +16,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       const eventKey = e instanceof CustomEvent ? e.detail?.key : e.key;
       const newValue = e instanceof CustomEvent ? e.detail?.newValue : e.newValue;
       if (eventKey !== key) return;
-      setValue(newValue !== null ? (JSON.parse(newValue) as T) : initialValue);
+      setValue(newValue !== null ? (JSON.parse(newValue) as T) : initialValueRef.current);
     };
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener(LOCAL_STORAGE_CHANGE, handleStorageChange as EventListener);
@@ -22,12 +24,12 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener(LOCAL_STORAGE_CHANGE, handleStorageChange as EventListener);
     };
-  }, [key, initialValue]);
+  }, [key]);
 
   const setStoredValue = useCallback(
     (newValue: T | null) => {
       if (newValue === null) {
-        setValue(initialValue);
+        setValue(initialValueRef.current);
         localStorage.removeItem(key);
       } else {
         setValue(newValue);
@@ -39,7 +41,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
         }),
       );
     },
-    [key, initialValue],
+    [key],
   );
 
   return [value, setStoredValue] as const;

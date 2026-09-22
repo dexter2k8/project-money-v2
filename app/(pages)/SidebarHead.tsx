@@ -21,8 +21,8 @@ export default function SidebarHead(isCollapsed: boolean) {
     const needsMigration = hiddenAccounts.some((v) => !idSet.has(v));
     if (!needsMigration) return;
     const migrated = hiddenAccounts
-      .map((v) => accounts.find((a) => a.id === v)?.id ?? accounts.find((a) => a.acctid === v)?.id ?? v)
-      .filter((v): v is string => v !== undefined);
+      .map((v) => accounts.find((a) => a.id === v)?.id ?? accounts.find((a) => a.acctid === v)?.id ?? null)
+      .filter((v): v is string => v !== null);
     setHiddenAccounts(migrated);
   }, [accounts, hiddenAccounts, setHiddenAccounts]);
 
