@@ -1,3 +1,5 @@
+import dayjs from "dayjs";
+
 export type TParsedTransaction = {
   trntype: string;
   dtposted: string;
@@ -24,38 +26,7 @@ function extractTag(content: string, tag: string): string {
 }
 
 function parseOfxDate(dateStr: string): string {
-  const defaultOffset = "-03:00";
-
-  if (!dateStr) {
-    const now = new Date();
-    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}T00:00:00${defaultOffset}`;
-  }
-
-  const offsetMatch = dateStr.match(/\[([+-]?\d+):/);
-  const tzOffset = offsetMatch ? parseInt(offsetMatch[1], 10) : -3;
-  const sign = tzOffset >= 0 ? "+" : "-";
-  const absOffset = Math.abs(tzOffset);
-  const offsetStr = `${sign}${String(absOffset).padStart(2, "0")}:00`;
-
-  const clean = dateStr.replace(/[^0-9]/g, "");
-
-  if (clean.length >= 8) {
-    const y = clean.substring(0, 4);
-    const m = clean.substring(4, 6);
-    const d = clean.substring(6, 8);
-
-    if (clean.length >= 14) {
-      const h = clean.substring(8, 10);
-      const min = clean.substring(10, 12);
-      const s = clean.substring(12, 14);
-      return `${y}-${m}-${d}T${h}:${min}:${s}${offsetStr}`;
-    }
-
-    return `${y}-${m}-${d}T00:00:00${offsetStr}`;
-  }
-
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}T00:00:00${defaultOffset}`;
+  return dayjs(dateStr).format("YYYY-MM-DD");
 }
 
 function parseOfxAccountInfo(content: string): TAccountInfo {
@@ -77,9 +48,10 @@ function parseTransactions(stmtrs: string, format: "ofx" | "ofc"): TParsedTransa
     const dtposted = parseOfxDate(extractTag(txnContent, "DTPOSTED"));
     const trnamtStr = extractTag(txnContent, "TRNAMT");
     const trnamt = parseFloat(trnamtStr) || 0;
-    const memo = format === "ofc"
-      ? extractTag(txnContent, "NAME") || extractTag(txnContent, "MEMO")
-      : extractTag(txnContent, "MEMO");
+    const memo =
+      format === "ofc"
+        ? extractTag(txnContent, "NAME") || extractTag(txnContent, "MEMO")
+        : extractTag(txnContent, "MEMO");
     const chknum = extractTag(txnContent, "CHECKNUM") || extractTag(txnContent, "CHKNUM");
 
     transactions.push({ trntype, dtposted, trnamt, memo, chknum });
