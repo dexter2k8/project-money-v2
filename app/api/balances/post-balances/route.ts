@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { AuthError, requireAuth } from "@/app/api/utils/auth";
 import { classifyError } from "@/app/api/utils/supabase-error";
 import { getSupabaseAdmin } from "@/app/services/supabase-admin";
+import { parseDateLocal } from "@/app/utils/dates";
 import type { NextRequest } from "next/server";
 
 dayjs.extend(utc);
@@ -14,11 +15,18 @@ export const runtime = "nodejs";
 
 const BRT_TZ = "America/Sao_Paulo";
 
-function getMonthKey(date: Date): string {
-  const brt = dayjs(date).tz(BRT_TZ);
-  return brt.format("YYYY-MM");
+/**
+ * Extracts "YYYY-MM" month key from a YYYY-MM-DD date string.
+ * Uses direct string parsing to avoid timezone issues with `new Date()`.
+ */
+function getMonthKey(dateStr: string): string {
+  return dateStr.substring(0, 7);
 }
 
+/**
+ * Returns the last day of a given month as YYYY-MM-DD.
+ * Month is 1-indexed (1=Jan, 12=Dec).
+ */
 function getLastDayOfMonth(year: number, month: number): string {
   const lastDay = dayjs.tz(`${year}-${String(month).padStart(2, "0")}-01`, BRT_TZ).endOf("month");
   return lastDay.startOf("day").format("YYYY-MM-DD");
@@ -53,13 +61,23 @@ export async function POST(request: NextRequest) {
     if (extratosError) throw extratosError;
 
     const allTransactions = (extratosData ?? []).map((txn) => ({
-      dtposted: new Date(txn.dtposted),
+      dtposted: String(txn.dtposted),
       trnamt: (txn.trnamt as number) ?? 0,
     }));
 
-    allTransactions.sort((a, b) => a.dtposted.getTime() - b.dtposted.getTime());
+    allTransactions.sort((a, b) => a.dtposted.localeCompare(b.dtposted));
 
-    const startFilter = startDate ? new Date(startDate) : null;
+    // Normalize startDate to YYYY-MM-DD (the format stored in extratos.dtposted).
+    // The client may send a date-only string (form) or an ISO string with
+    // timezone offset (OFX import), so parse it with the same helper used when
+    // storing transactions to keep the comparison below consistent.
+    let startFilter: string | null = null;
+    if (startDate) {
+      const parsedStart = parseDateLocal(startDate);
+      startFilter = !Number.isNaN(parsedStart.getTime())
+        ? parsedStart.toISOString().split("T")[0]
+        : null;
+    }
 
     const filteredTransactions = startFilter
       ? allTransactions.filter((txn) => txn.dtposted >= startFilter)
@@ -77,8 +95,7 @@ export async function POST(request: NextRequest) {
 
     if (startFilter) {
       const previousSaldos = (existingSaldos ?? []).filter((s) => {
-        const enddate = new Date(s.enddate);
-        return enddate < startFilter;
+        return String(s.enddate) < startFilter;
       });
       if (previousSaldos.length > 0) {
         const lastSaldo = previousSaldos[previousSaldos.length - 1];
@@ -86,7 +103,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const transactionsByMonth = new Map<string, { dtposted: Date; trnamt: number }[]>();
+    const transactionsByMonth = new Map<string, { dtposted: string; trnamt: number }[]>();
     for (const txn of filteredTransactions) {
       const monthKey = getMonthKey(txn.dtposted);
       if (!transactionsByMonth.has(monthKey)) {
@@ -97,8 +114,7 @@ export async function POST(request: NextRequest) {
 
     const existingSaldoMap = new Map<string, string>();
     for (const saldo of existingSaldos ?? []) {
-      const enddate = new Date(saldo.enddate);
-      const key = getMonthKey(enddate);
+      const key = getMonthKey(String(saldo.enddate));
       existingSaldoMap.set(key, saldo.id);
     }
 

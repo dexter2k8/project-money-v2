@@ -63,11 +63,19 @@ export async function GET(request: NextRequest) {
             .limit(1);
 
           if (latestSaldos && latestSaldos.length > 0) {
-            const latestDate = new Date(latestSaldos[0].enddate);
-            const filterDate = new Date(latestDate);
-            filterDate.setUTCFullYear(filterDate.getUTCFullYear() - Number(years));
-            filterDate.setUTCMonth(filterDate.getUTCMonth() - 1);
-            saldoQuery = saldoQuery.gte("enddate", filterDate.toISOString().split("T")[0]);
+            const latestDateMatch = String(latestSaldos[0].enddate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (latestDateMatch) {
+              // Start `years` years (plus a one-month buffer) before the latest saldo.
+              const monthsBack = Number(years) * 12 + 1;
+              const absoluteMonth =
+                Number(latestDateMatch[1]) * 12 + Number(latestDateMatch[2]) - 1 - monthsBack;
+              const filterYear = Math.floor(absoluteMonth / 12);
+              const filterMonth = (((absoluteMonth % 12) + 12) % 12) + 1;
+              const lastDay = new Date(Date.UTC(filterYear, filterMonth, 0)).getUTCDate();
+              const filterDay = Math.min(Number(latestDateMatch[3]), lastDay);
+              const filterDateStr = `${String(filterYear).padStart(4, "0")}-${String(filterMonth).padStart(2, "0")}-${String(filterDay).padStart(2, "0")}`;
+              saldoQuery = saldoQuery.gte("enddate", filterDateStr);
+            }
           }
         }
 
@@ -113,11 +121,19 @@ export async function GET(request: NextRequest) {
             .limit(1);
 
           if (latestSaldos && latestSaldos.length > 0) {
-            const latestDate = new Date(latestSaldos[0].enddate);
-            const filterDate = new Date(latestDate);
-            filterDate.setUTCFullYear(filterDate.getUTCFullYear() - Number(years));
-            filterDate.setUTCMonth(filterDate.getUTCMonth() - 1);
-            saldoQuery = saldoQuery.gte("enddate", filterDate.toISOString().split("T")[0]);
+            const latestDateMatch = String(latestSaldos[0].enddate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (latestDateMatch) {
+              // Start `years` years (plus a one-month buffer) before the latest saldo.
+              const monthsBack = Number(years) * 12 + 1;
+              const absoluteMonth =
+                Number(latestDateMatch[1]) * 12 + Number(latestDateMatch[2]) - 1 - monthsBack;
+              const filterYear = Math.floor(absoluteMonth / 12);
+              const filterMonth = (((absoluteMonth % 12) + 12) % 12) + 1;
+              const lastDay = new Date(Date.UTC(filterYear, filterMonth, 0)).getUTCDate();
+              const filterDay = Math.min(Number(latestDateMatch[3]), lastDay);
+              const filterDateStr = `${String(filterYear).padStart(4, "0")}-${String(filterMonth).padStart(2, "0")}-${String(filterDay).padStart(2, "0")}`;
+              saldoQuery = saldoQuery.gte("enddate", filterDateStr);
+            }
           }
         }
 

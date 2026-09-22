@@ -37,9 +37,11 @@ export async function GET(request: NextRequest) {
     const yearsMap = new Map<number, Set<number>>();
 
     for (const saldo of saldos ?? []) {
-      const enddate = new Date(saldo.enddate);
-      const year = enddate.getUTCFullYear();
-      const month = enddate.getUTCMonth();
+      const enddate = String(saldo.enddate);
+      const match = enddate.match(/^(\d{4})-(\d{2})/);
+      if (!match) continue;
+      const year = Number(match[1]);
+      const month = Number(match[2]) - 1; // 0-indexed for consistency with getUTCMonth
 
       if (!yearsMap.has(year)) {
         yearsMap.set(year, new Set());

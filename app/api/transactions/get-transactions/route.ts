@@ -62,10 +62,19 @@ export async function GET(request: NextRequest) {
             .limit(1);
 
           if (latestExtratos && latestExtratos.length > 0) {
-            const latestDate = new Date(latestExtratos[0].dtposted);
-            const filterDate = new Date(latestDate);
-            filterDate.setUTCFullYear(filterDate.getUTCFullYear() - Number(years));
-            startDateStr = filterDate.toISOString().split("T")[0];
+            const latestDateMatch = String(latestExtratos[0].dtposted).match(
+              /^(\d{4})-(\d{2})-(\d{2})/,
+            );
+            if (latestDateMatch) {
+              // Fetch transactions from `years` years before the latest one.
+              // Clamp the day to handle Feb 29 in non-leap target years.
+              const filterYear = Number(latestDateMatch[1]) - Number(years);
+              const lastDay = new Date(
+                Date.UTC(filterYear, Number(latestDateMatch[2]), 0),
+              ).getUTCDate();
+              const filterDay = Math.min(Number(latestDateMatch[3]), lastDay);
+              startDateStr = `${String(filterYear).padStart(4, "0")}-${latestDateMatch[2]}-${String(filterDay).padStart(2, "0")}`;
+            }
           }
         }
 
