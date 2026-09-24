@@ -25,7 +25,16 @@ function extractTag(content: string, tag: string): string {
   return match?.[1]?.trim() ?? "";
 }
 
+/**
+ * OFX dates arrive as YYYYMMDD, YYYYMMDDHHMMSS or DTS with timezone
+ * (e.g. 20260531000000.000[-03:00]). Extract the leading digits so every
+ * variant normalizes to the YYYY-MM-DD string format stored in Supabase.
+ */
 function parseOfxDate(dateStr: string): string {
+  const digits = dateStr.replace(/[^0-9]/g, "");
+  if (digits.length >= 8) {
+    return `${digits.substring(0, 4)}-${digits.substring(4, 6)}-${digits.substring(6, 8)}`;
+  }
   return dayjs(dateStr).format("YYYY-MM-DD");
 }
 

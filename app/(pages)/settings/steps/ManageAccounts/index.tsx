@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { SquarePlus } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { useAccounts } from "@/app/hooks/useAccounts";
 import { useLocalStorage } from "@/app/hooks/useLocalStorage";
 import { useSWR } from "@/app/hooks/useSWR";
 import { DeleteAccount, PatchAccount, PostAccount } from "@/app/services/fetchers/accounts";
@@ -55,10 +56,7 @@ export function ManageAccounts() {
     defaultValues,
   });
 
-  const { response, isLoading, mutate } = useSWR<IResponse<TGetAccountResponse>>(
-    API.ACCOUNTS.GET_ACCOUNTS,
-    { fields: "metadata" },
-  );
+  const { accounts, isLoading, mutate } = useAccounts();
   const { response: banksResponse } = useSWR<IResponse<TGetBankResponse>>(API.BANKS.GET_BANKS);
 
   const banks = useMemo(() => banksResponse?.data ?? [], [banksResponse]);
@@ -69,8 +67,8 @@ export function ManageAccounts() {
   );
 
   const accountData = useMemo(
-    () => response?.data.find((t) => t.id === action?.id),
-    [response, action?.id],
+    () => accounts.find((t) => t.id === action?.id),
+    [accounts, action?.id],
   ) as TGetAccountResponse | undefined;
 
   const handleDelete = async () => {
@@ -139,7 +137,7 @@ export function ManageAccounts() {
         />
       </div>
       <div className="h-0 flex-1 min-h-0 overflow-auto">
-        <Table<TGetAccountResponse> loading={isLoading} columns={columns} rows={response?.data || []} />
+        <Table<TGetAccountResponse> loading={isLoading} columns={columns} rows={accounts} />
       </div>
 
       <Modal

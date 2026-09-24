@@ -57,22 +57,30 @@ export function ImportOfxButton({ acctid, accountId }: TImportOfxButtonProps) {
 
         const result = await response.json();
 
-        if (result.count === 0) {
-          toast.info("Todas as transações já existem no sistema.");
-          return;
-        }
-
         const earliestDate = parsed.reduce((min, t) => {
           return t.dtposted < min ? t.dtposted : min;
         }, parsed[0].dtposted);
 
-        await fetch(API.BALANCES.POST_BALANCES, {
+        // Always recompute, even when every transaction already existed: a
+        // re-import then repairs stale/incorrect saldo rows. A failed recompute
+        // must also surface — it used to fail silently, leaving a wrong saldo
+        // in place while the transaction table looked fine.
+        const balancesResponse = await fetch(API.BALANCES.POST_BALANCES, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ accountId, startDate: earliestDate }),
         });
 
-        toast.success(`${result.count} transação(ões) importada(s) com sucesso!`);
+        if (!balancesResponse.ok) {
+          const json = await balancesResponse.json().catch(() => ({}));
+          throw new Error(json.error || "Erro ao atualizar saldos");
+        }
+
+        if (result.count === 0) {
+          toast.info("Nenhuma transação nova; saldos recalculados.");
+        } else {
+          toast.success(`${result.count} transação(ões) importada(s) com sucesso!`);
+        }
 
         mutate((key: string) => typeof key === "string" && key.startsWith(API.BALANCES.GET_BALANCES));
         mutate(`${API.BALANCES.GET_YEARS}?accountId=${accountId}`);

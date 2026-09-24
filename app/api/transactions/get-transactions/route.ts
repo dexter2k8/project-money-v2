@@ -85,15 +85,28 @@ export async function GET(request: NextRequest) {
           extratosQuery = extratosQuery.lte("dtposted", endDateStr);
         }
 
-        const { data: extratos, error: extratosError } = await extratosQuery.order("dtposted", {
-          ascending: true,
-        });
+        // PostgREST caps a response at 1000 rows: the `years` branch can
+        // exceed that, and a single select would silently drop rows (the
+        // client builds running saldos and analytics from this set). Page
+        // through with a stable order (dtposted + id tie-break) so pages stay
+        // disjoint and the chronological order the client expects is kept.
+        const BATCH_SIZE = 1000;
+        const extratos: unknown[] = [];
+        for (let from = 0; ; from += BATCH_SIZE) {
+          const { data, error } = await extratosQuery
+            .order("dtposted", { ascending: true })
+            .order("id", { ascending: true })
+            .range(from, from + BATCH_SIZE - 1);
 
-        if (extratosError) throw extratosError;
+          if (error) throw error;
+
+          extratos.push(...(data ?? []));
+          if (!data || data.length < BATCH_SIZE) break;
+        }
 
         return {
           ...account,
-          extratos: extratos ?? [],
+          extratos,
         };
       }),
     );

@@ -19,11 +19,11 @@ import type { IResponse } from "@/app/api/types";
 import type { TTransactionWithSaldo } from "./columns";
 
 export default function Dashboard() {
-  const { balance, accountId, acctid, isLoadingBalance } = useBalance();
+  const { accountId, acctid } = useBalance();
 
-  const allSaldos = useMemo(() => balance?.data?.[0]?.saldos ?? [], [balance]);
-
-  const { response: yearsData } = useSWR<IResponse<{ year: number; months: number[] }>>(
+  const { response: yearsData, isLoading: isLoadingYears } = useSWR<
+    IResponse<{ year: number; months: number[] }>
+  >(
     accountId ? API.BALANCES.GET_YEARS : undefined,
     accountId ? { accountId } : undefined,
   );
@@ -112,8 +112,9 @@ export default function Dashboard() {
     }));
   };
 
-  const canFetchTransactions = accountId && effectiveYear && effectiveMonth != null;
-  const transactionsParams = canFetchTransactions
+  const canFetchPeriod = accountId && effectiveYear && effectiveMonth != null;
+  // Same period params as get-transactions (month + year), shared with get-balances.
+  const periodParams = canFetchPeriod
     ? { accountId, month: String(effectiveMonth + 1), year: effectiveYear }
     : undefined;
 
@@ -122,8 +123,23 @@ export default function Dashboard() {
     isLoading,
     mutate: mutateTransactions,
   } = useSWR<IResponse<TGetAccountResponse>>(
-    canFetchTransactions ? API.TRANSACTIONS.GET_TRANSACTIONS : undefined,
-    transactionsParams,
+    canFetchPeriod ? API.TRANSACTIONS.GET_TRANSACTIONS : undefined,
+    periodParams,
+  );
+
+  const { response: balance, isLoading: isLoadingBalance } = useSWR<IResponse<TGetAccountResponse>>(
+    canFetchPeriod ? API.BALANCES.GET_BALANCES : undefined,
+    periodParams,
+    { keepPreviousData: true },
+  );
+
+  // keepPreviousData exposes the previous payload while a new period/account loads;
+  // a payload from another account must never be shown as the current one.
+  const isStaleBalance = !!balance?.data?.[0]?.id && balance.data[0]?.id !== accountId;
+
+  const allSaldos = useMemo(
+    () => (isStaleBalance ? [] : (balance?.data?.[0]?.saldos ?? [])),
+    [balance, isStaleBalance],
   );
 
   const transactions: TTransaction[] = useMemo(
@@ -173,7 +189,7 @@ export default function Dashboard() {
 
   const columns = useMemo(
     () =>
-      canFetchTransactions
+      canFetchPeriod
         ? createColumns({
             accountId: accountId ?? "",
             month: effectiveMonth + 1,
@@ -183,7 +199,7 @@ export default function Dashboard() {
           })
         : [],
     [
-      canFetchTransactions,
+      canFetchPeriod,
       accountId,
       effectiveMonth,
       effectiveYear,
@@ -199,7 +215,8 @@ export default function Dashboard() {
     requestAnimationFrame(() => setHasMounted(true));
   }, []);
 
-  const isInitialLoading = hasMounted && !!acctid && isLoadingBalance && !balance;
+  const isInitialLoading =
+    hasMounted && !!acctid && (isLoadingBalance || isLoadingYears) && (!balance || isStaleBalance);
 
   return (
     <div className="m-8 bg-white w-full rounded-2xl overflow-hidden flex flex-col">
@@ -207,7 +224,9 @@ export default function Dashboard() {
         <h2>Extrato Bancário</h2>
         <div className="flex items-center gap-2">
           {hasMounted && accountId && <ExportTransactionsCsvButton accountId={accountId} />}
-          {hasMounted && acctid && <ExportBalanceCsvButton acctid={acctid} saldos={allSaldos} />}
+          {hasMounted && acctid && accountId && (
+            <ExportBalanceCsvButton acctid={acctid} accountId={accountId} />
+          )}
         </div>
       </div>
       {isInitialLoading ? (

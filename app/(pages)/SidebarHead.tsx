@@ -2,15 +2,34 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "class-variance-authority";
 import { Loader2 } from "lucide-react";
+import { useAccounts } from "@/app/hooks/useAccounts";
 import { useLocalStorage } from "@/app/hooks/useLocalStorage";
+import { useSWR } from "@/app/hooks/useSWR";
+import { API } from "@/app/utils/paths";
 import Button from "@/components/Button";
 import Modal from "@/components/Modal";
 import Select from "@/components/Select";
 import { buttonWrapperVariants, TRANSITION } from "./constants";
 import { useBalance } from "../providers/BalanceProvider";
+import type { TGetBankResponse } from "@/app/api/banks/types";
+import type { IResponse } from "@/app/api/types";
 
 export default function SidebarHead(isCollapsed: boolean) {
-  const { accounts, banks, selectedAccount, selectedBank, accountId, setAccountId, isLoadingBanks, isLoadingAccounts } = useBalance();
+  const { selectedAccount, accountId, setAccountId } = useBalance();
+  const { accounts, isLoading: isLoadingAccounts } = useAccounts();
+  const { response: banksResponse, isLoading: isLoadingBanks } = useSWR<IResponse<TGetBankResponse>>(
+    API.BANKS.GET_BANKS,
+    undefined,
+    { dedupingInterval: 300_000 },
+  );
+
+  const banks = useMemo(() => banksResponse?.data ?? [], [banksResponse]);
+
+  const selectedBank = useMemo(
+    () => banks.find((b) => Number(b.id) === selectedAccount?.bankid) ?? null,
+    [banks, selectedAccount],
+  );
+
   const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
   const triggerRef = useRef<HTMLSpanElement>(null);
   const [hiddenAccounts, setHiddenAccounts] = useLocalStorage<string[]>("hidden-accounts", []);

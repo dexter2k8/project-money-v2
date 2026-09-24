@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
+import dayjs from "dayjs";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { mutate as mutateSWR } from "swr";
@@ -47,16 +48,14 @@ export function TransactionForm({
     defaultValues:
       mode === "edit" && transaction
         ? {
-            dtposted: transaction.dtposted
-              ? new Date(transaction.dtposted).toISOString().split("T")[0]
-              : "",
+            dtposted: transaction.dtposted ? transaction.dtposted.split("T")[0] : "",
             memo: transaction.memo || "",
             chknum: transaction.chknum || "",
             trnamt: transaction.trnamt || 0,
             trntype: "OTHER",
           }
         : {
-            dtposted: new Date().toISOString().split("T")[0],
+            dtposted: dayjs().format("YYYY-MM-DD"),
             memo: "",
             chknum: "",
             trnamt: 0,

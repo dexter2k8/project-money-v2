@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const accountId = request.nextUrl.searchParams.get("accountId");
     const flatten = request.nextUrl.searchParams.get("flatten") === "true";
     const fields = request.nextUrl.searchParams.get("fields");
+    const month = request.nextUrl.searchParams.get("month");
     const years = request.nextUrl.searchParams.get("years");
     const year = request.nextUrl.searchParams.get("year");
 
@@ -79,7 +80,14 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        if (year) {
+        if (month && year) {
+          // Selected month plus the previous one (the dashboard needs it for "Anterior").
+          const startOfRange = new Date(Date.UTC(Number(year), Number(month) - 2, 1));
+          const endOfRange = new Date(Date.UTC(Number(year), Number(month), 0));
+          saldoQuery = saldoQuery
+            .gte("enddate", startOfRange.toISOString().split("T")[0])
+            .lte("enddate", endOfRange.toISOString().split("T")[0]);
+        } else if (year) {
           const startOfPrevYear = `${Number(year) - 1}-01-01`;
           const endOfSelectedYear = `${Number(year)}-12-31`;
           saldoQuery = saldoQuery.gte("enddate", startOfPrevYear).lte("enddate", endOfSelectedYear);
@@ -137,7 +145,14 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        if (year) {
+        if (month && year) {
+          // Selected month plus the previous one (the dashboard needs it for "Anterior").
+          const startOfRange = new Date(Date.UTC(Number(year), Number(month) - 2, 1));
+          const endOfRange = new Date(Date.UTC(Number(year), Number(month), 0));
+          saldoQuery = saldoQuery
+            .gte("enddate", startOfRange.toISOString().split("T")[0])
+            .lte("enddate", endOfRange.toISOString().split("T")[0]);
+        } else if (year) {
           const startOfPrevYear = `${Number(year) - 1}-01-01`;
           const endOfSelectedYear = `${Number(year)}-12-31`;
           saldoQuery = saldoQuery.gte("enddate", startOfPrevYear).lte("enddate", endOfSelectedYear);

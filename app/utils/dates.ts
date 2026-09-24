@@ -42,20 +42,6 @@ export function parseDateUTC(dateStr: string): Date {
   return new Date(dateStr);
 }
 
-export function dateToSupabaseString(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (value instanceof Date) {
-    return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
-  }
-  if (value && typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
-    const d = (value as { toDate: () => Date }).toDate();
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-  }
-  return String(value ?? "");
-}
-
-export const firestoreDateToString = dateToSupabaseString;
-
 export const MONTH_NAMES = [
   "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
   "Jul", "Ago", "Set", "Out", "Nov", "Dez",

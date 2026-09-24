@@ -11,7 +11,9 @@ export const API = {
   },
 
   ACCOUNTS: {
-    GET_ACCOUNTS: "/api/balances/get-balances/",
+    // No trailing slash: Next.js 308-redirects `/path/?query` to `/path?query`,
+    // doubling every request that carries a query string.
+    GET_ACCOUNTS: "/api/balances/get-balances",
     POST_ACCOUNT: "/api/accounts/post-account",
     PATCH_ACCOUNT: "/api/accounts/patch-account/",
     DELETE_ACCOUNT: "/api/accounts/delete-account/",
@@ -26,7 +28,7 @@ export const API = {
   },
 
   TRANSACTIONS: {
-    GET_TRANSACTIONS: "/api/transactions/get-transactions/",
+    GET_TRANSACTIONS: "/api/transactions/get-transactions",
     GET_TRANSACTION: "/api/transactions/get-transaction/",
     POST_TRANSACTION: "/api/transactions/post-transaction",
     PATCH_TRANSACTION: "/api/transactions/patch-transaction/",
@@ -35,7 +37,7 @@ export const API = {
   },
 
   BALANCES: {
-    GET_BALANCES: "/api/balances/get-balances/",
+    GET_BALANCES: "/api/balances/get-balances",
     GET_YEARS: "/api/balances/get-years",
     POST_BALANCES: "/api/balances/post-balances",
     POST_BALANCE: "/api/balances/post-balance",

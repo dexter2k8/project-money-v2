@@ -1,25 +1,15 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo } from "react";
+import { useAccounts } from "../hooks/useAccounts";
 import { useLocalStorage } from "../hooks/useLocalStorage";
-import { useSWR } from "../hooks/useSWR";
-import { API } from "../utils/paths";
 import type { PropsWithChildren } from "react";
 import type { TGetAccountResponse } from "../api/accounts/types";
-import type { TGetBankResponse } from "../api/banks/types";
-import type { IResponse } from "../api/types";
 
 interface IBalanceContextData {
-  accounts: TGetAccountResponse[];
-  banks: TGetBankResponse[];
   selectedAccount: TGetAccountResponse | null;
-  selectedBank: TGetBankResponse | null;
-  balance: IResponse<TGetAccountResponse> | undefined;
   accountId: string | null;
   acctid: string | null;
   setAccountId: (value: string | null) => void;
-  isLoadingBanks: boolean;
-  isLoadingAccounts: boolean;
-  isLoadingBalance: boolean;
 }
 
 const BalanceContext = createContext<IBalanceContextData | null>(null);
@@ -27,19 +17,9 @@ const BalanceContext = createContext<IBalanceContextData | null>(null);
 export function BalanceProvider({ children }: PropsWithChildren) {
   const [storedValue, setStoredValue] = useLocalStorage<string | null>("account", null);
 
-  const { response: allAccounts, isLoading: isLoadingAccounts } = useSWR<IResponse<TGetAccountResponse>>(
-    API.BALANCES.GET_BALANCES,
-    { fields: "metadata" },
-  );
-
-  const { response: banks, isLoading: isLoadingBanks } = useSWR<IResponse<TGetBankResponse>>(
-    API.BANKS.GET_BANKS,
-    undefined,
-    { dedupingInterval: 300_000 },
-  );
-
-  const accounts = useMemo(() => allAccounts?.data ?? [], [allAccounts]);
-  const bankList = useMemo(() => banks?.data ?? [], [banks]);
+  // Shared hook: provider, SidebarHead and ManageAccounts hit the same SWR key,
+  // so the accounts list is fetched once per app load.
+  const { accounts } = useAccounts();
 
   const selectedAccount = useMemo(() => {
     if (!accounts.length || !storedValue) return null;
@@ -57,16 +37,6 @@ export function BalanceProvider({ children }: PropsWithChildren) {
   const accountId = selectedAccount?.id ?? null;
   const acctid = selectedAccount?.acctid ?? null;
 
-  const { response: balance, isLoading: isLoadingBalance } = useSWR<IResponse<TGetAccountResponse>>(
-    accountId ? API.BALANCES.GET_BALANCES : undefined,
-    accountId ? { accountId, years: "2" } : undefined,
-  );
-
-  const selectedBank = useMemo(
-    () => bankList.find((b) => Number(b.id) === selectedAccount?.bankid) ?? null,
-    [bankList, selectedAccount],
-  );
-
   const handleSetAccountId = useCallback(
     (value: string | null) => {
       setStoredValue(value);
@@ -76,19 +46,12 @@ export function BalanceProvider({ children }: PropsWithChildren) {
 
   const values = useMemo(
     () => ({
-      accounts,
-      banks: bankList,
       selectedAccount,
-      selectedBank,
-      balance,
       accountId,
       acctid,
       setAccountId: handleSetAccountId,
-      isLoadingBanks,
-      isLoadingAccounts,
-      isLoadingBalance,
     }),
-    [accounts, bankList, selectedAccount, selectedBank, balance, accountId, acctid, handleSetAccountId, isLoadingBanks, isLoadingAccounts, isLoadingBalance],
+    [selectedAccount, accountId, acctid, handleSetAccountId],
   );
 
   return <BalanceContext.Provider value={values}>{children}</BalanceContext.Provider>;
