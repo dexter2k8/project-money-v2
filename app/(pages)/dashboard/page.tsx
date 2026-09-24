@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSWR } from "@/app/hooks/useSWR";
 import { useBalance } from "@/app/providers/BalanceProvider";
 import { parseDateUTC } from "@/app/utils/dates";
@@ -18,12 +18,56 @@ import type { TGetAccountResponse, TTransaction } from "@/app/api/accounts/types
 import type { IResponse } from "@/app/api/types";
 import type { TTransactionWithSaldo } from "./columns";
 
+type TYearEntry = { year: number; months: number[] };
+
+/**
+ * Mirrors the selection effect below for the get-years payload refreshed by an
+ * import: true when the displayed period will change — the period hooks then
+ * remount and fetch the new key by themselves, so revalidating the current key
+ * first would make get-balances run twice. When false, the current key is the
+ * only one that can show the recomputed saldo and must be revalidated.
+ * Imports only ever add years/months, so the effect's removal branches cannot fire here.
+ */
+function willPeriodChange(
+  prevYears: TYearEntry[],
+  nextYears: TYearEntry[],
+  currentYear: string,
+  currentMonth: number,
+): boolean {
+  if (nextYears.length === 0) return false;
+
+  const monthsOf = (years: TYearEntry[], year: string) =>
+    years.find((y) => String(y.year) === year)?.months ?? [];
+  const lastMonth = (months: number[]) =>
+    months.length > 0 ? months[months.length - 1] : undefined;
+
+  // yearAdded → effect resets the selection to yearOptions[0] and its last month.
+  if (nextYears.length > prevYears.length) {
+    const targetYear = String(nextYears[0].year);
+    return (
+      targetYear !== currentYear ||
+      lastMonth(monthsOf(nextYears, targetYear)) !== currentMonth
+    );
+  }
+
+  // monthAdded → effect jumps to the last month of the current year.
+  const prevMonths = monthsOf(prevYears, currentYear);
+  const nextMonths = monthsOf(nextYears, currentYear);
+  if (nextMonths.length > prevMonths.length) {
+    return lastMonth(nextMonths) !== currentMonth;
+  }
+
+  return false;
+}
+
 export default function Dashboard() {
   const { accountId, acctid } = useBalance();
 
-  const { response: yearsData, isLoading: isLoadingYears } = useSWR<
-    IResponse<{ year: number; months: number[] }>
-  >(
+  const {
+    response: yearsData,
+    isLoading: isLoadingYears,
+    mutate: mutateYears,
+  } = useSWR<IResponse<TYearEntry>>(
     accountId ? API.BALANCES.GET_YEARS : undefined,
     accountId ? { accountId } : undefined,
   );
@@ -127,11 +171,31 @@ export default function Dashboard() {
     periodParams,
   );
 
-  const { response: balance, isLoading: isLoadingBalance } = useSWR<IResponse<TGetAccountResponse>>(
+  const {
+    response: balance,
+    isLoading: isLoadingBalance,
+    mutate: mutateBalance,
+  } = useSWR<IResponse<TGetAccountResponse>>(
     canFetchPeriod ? API.BALANCES.GET_BALANCES : undefined,
     periodParams,
     { keepPreviousData: true },
   );
+
+  // A single import must trigger exactly one get-balances request: refresh the
+  // current period key only when the selection effect will not move the period.
+  // If it moves, the remounted hooks fetch the new key on their own — and the
+  // old key's saldo is no longer on screen, so revalidating it would be waste.
+  const handleImported = useCallback(async () => {
+    const prevYears = yearsData?.data ?? [];
+    const nextYears = (await mutateYears().catch(() => undefined))?.data ?? [];
+
+    const hasPeriod = effectiveYear != null && effectiveMonth != null;
+    if (!hasPeriod) return;
+
+    if (!willPeriodChange(prevYears, nextYears, effectiveYear, effectiveMonth)) {
+      mutateBalance();
+    }
+  }, [yearsData, mutateYears, mutateBalance, effectiveYear, effectiveMonth]);
 
   // keepPreviousData exposes the previous payload while a new period/account loads;
   // a payload from another account must never be shown as the current one.
@@ -252,7 +316,11 @@ export default function Dashboard() {
           <div className="relative m-4 flex-1 min-h-0 flex flex-col">
             <div className="flex items-center justify-between mb-2">
               {hasMounted && acctid && (
-                <ImportOfxButton acctid={acctid} accountId={accountId ?? ""} />
+                <ImportOfxButton
+                  acctid={acctid}
+                  accountId={accountId ?? ""}
+                  onImported={handleImported}
+                />
               )}
               <Switch checked={showControls} onChange={setShowControls} label="Show controls" />
             </div>

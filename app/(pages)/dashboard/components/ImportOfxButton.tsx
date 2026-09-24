@@ -9,9 +9,10 @@ import Button from "@/components/Button";
 type TImportOfxButtonProps = {
   acctid: string;
   accountId: string;
+  onImported?: () => void | Promise<void>;
 };
 
-export function ImportOfxButton({ acctid, accountId }: TImportOfxButtonProps) {
+export function ImportOfxButton({ acctid, accountId, onImported }: TImportOfxButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -82,13 +83,15 @@ export function ImportOfxButton({ acctid, accountId }: TImportOfxButtonProps) {
           toast.success(`${result.count} transação(ões) importada(s) com sucesso!`);
         }
 
-        mutate((key: string) => typeof key === "string" && key.startsWith(API.BALANCES.GET_BALANCES));
-        mutate(`${API.BALANCES.GET_YEARS}?accountId=${accountId}`);
-
         const date = new Date(earliestDate);
         const month = date.getUTCMonth() + 1;
         const year = date.getUTCFullYear();
         mutate(`${API.TRANSACTIONS.GET_TRANSACTIONS}?accountId=${accountId}&month=${month}&year=${year}`);
+
+        // The saldo/years refresh lives in the page: it revalidates
+        // get-balances exactly once — either on the current key or, when a new
+        // period makes the selection move, on the remounted key (never both).
+        await onImported?.();
       } catch (error) {
         console.error("Import error:", error);
         const message = error instanceof Error ? error.message : "Erro ao importar arquivo. Verifique o formato.";
@@ -100,7 +103,7 @@ export function ImportOfxButton({ acctid, accountId }: TImportOfxButtonProps) {
         }
       }
     },
-    [acctid, accountId],
+    [acctid, accountId, onImported],
   );
 
   return (
