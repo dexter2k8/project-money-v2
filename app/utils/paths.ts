@@ -46,4 +46,4 @@ export const API = {
   },
 };
 
-export const DEMO_USER_ID = "zXwvyA8yCxSXCbuBA4eD9bekEHy2";
+export const DEMO_ROLE = "user";

@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { useSWR } from "@/app/hooks/useSWR";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { DeleteBank, PatchBank, PostBank } from "@/app/services/fetchers/banks";
-import { DEMO_USER_ID } from "@/app/utils/paths";
+import { DEMO_ROLE } from "@/app/utils/paths";
 import { API } from "@/app/utils/paths";
 import { editBankSchema, postBankSchema } from "@/app/validations/banks";
 import Modal from "@/components/Modal";
@@ -21,7 +21,7 @@ import type { IActionsProps } from "./types";
 
 export function ManageBanks() {
   const { selfUser } = useAuth();
-  const isDemoUser = selfUser?.uid === DEMO_USER_ID;
+  const isDemoUser = selfUser?.role === DEMO_ROLE;
   const [action, setAction] = useState<IActionsProps>();
   const [loading, setLoading] = useState(false);
 

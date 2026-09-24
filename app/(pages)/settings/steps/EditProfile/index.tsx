@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { PatchUser } from "@/app/services/fetchers/auth";
-import { DEMO_USER_ID } from "@/app/utils/paths";
+import { DEMO_ROLE } from "@/app/utils/paths";
 import { updateUserSchema } from "@/app/validations/auth";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
@@ -23,7 +23,7 @@ export default function EditProfile() {
     resolver: yupResolver(updateUserSchema) as Resolver<IEditProfileProps>,
   });
 
-  const isDemoUser = selfUser?.uid === DEMO_USER_ID;
+  const isDemoUser = selfUser?.uid === DEMO_ROLE;
 
   useEffect(() => {
     if (selfUser) {
