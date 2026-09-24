@@ -13,10 +13,7 @@ export async function POST() {
     }
 
     // Create a fresh client per request to avoid session state conflicts
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    );
+    const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!);
 
     // Set the current session so Supabase knows who we are
     const { error: setSessionError } = await supabase.auth.setSession({
