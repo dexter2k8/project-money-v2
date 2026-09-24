@@ -37,7 +37,7 @@ export function useTransactionsAndSaldos(): ITransactionsAndSaldos {
     );
   }, [response]);
 
-  const isLoading = !response && canFetch;
+  const isLoading = (!response || !balance) && canFetch;
 
   return { transactions, allSaldos, isLoading };
 }
@@ -48,17 +48,31 @@ export function findPreviousBalance(
 ): number {
   if (allSaldos.length === 0) return 0;
 
-  let prevMonth = referenceDate.getUTCMonth() - 1;
-  let prevYear = referenceDate.getUTCFullYear();
-  if (prevMonth < 0) {
-    prevMonth = 11;
-    prevYear -= 1;
+  const refYear = referenceDate.getUTCFullYear();
+  const refMonth = referenceDate.getUTCMonth();
+
+  // Closing balance of the month before `referenceDate`. Taking the LATEST
+  // saldo strictly before that month (instead of the first row matching the
+  // previous month) handles two cases: a month with more than one saldo row,
+  // and a missing/older row when the window returned by get-balances starts
+  // after the previous month — which used to seed the running sum with 0.
+  let seed: { balance: number; enddate: string } | undefined;
+  let seedTime = Number.NEGATIVE_INFINITY;
+
+  for (const s of allSaldos) {
+    const date = parseDateUTC(s.enddate);
+    const isBeforeReferenceMonth =
+      date.getUTCFullYear() < refYear ||
+      (date.getUTCFullYear() === refYear && date.getUTCMonth() < refMonth);
+
+    if (!isBeforeReferenceMonth) continue;
+
+    const time = date.getTime();
+    if (time > seedTime) {
+      seed = s;
+      seedTime = time;
+    }
   }
 
-  const prevEntry = allSaldos.find((s) => {
-    const date = parseDateUTC(s.enddate);
-    return date.getUTCMonth() === prevMonth && date.getUTCFullYear() === prevYear;
-  });
-
-  return prevEntry?.balance ?? 0;
+  return seed?.balance ?? 0;
 }
